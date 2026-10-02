@@ -11,7 +11,7 @@ public abstract class Account {
     private final String customerId;
     private BigDecimal balance;
 
-    public Account(String accountNumber,
+    protected Account(String accountNumber,
                    String customerId,
                    BigDecimal initialBalance) {
 
