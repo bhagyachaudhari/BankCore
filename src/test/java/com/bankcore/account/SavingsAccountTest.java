@@ -171,8 +171,8 @@ class SavingsAccountTest {
         // Withdrawal = ₹9,000.01
         // Remaining balance = ₹999.99
 
-        InsufficientFundsException exception = assertThrows(
-                InsufficientFundsException.class,
+        MinimumBalanceException exception = assertThrows(
+                MinimumBalanceException.class,
                 () -> account.withdraw(
                         new BigDecimal("9000.01")
                 )
@@ -189,7 +189,7 @@ class SavingsAccountTest {
     void shouldNotChangeBalanceWhenWithdrawalIsRejected() {
 
         assertThrows(
-                InsufficientFundsException.class,
+                MinimumBalanceException.class,
                 () -> account.withdraw(
                         new BigDecimal("9000.01")
                 )
@@ -209,7 +209,7 @@ class SavingsAccountTest {
         // which is below the required ₹1,000.
 
         assertThrows(
-                InsufficientFundsException.class,
+                MinimumBalanceException.class,
                 () -> account.withdraw(
                         new BigDecimal("10000.00")
                 )
@@ -318,7 +318,7 @@ class SavingsAccountTest {
         // Balance = ₹1,000
 
         assertThrows(
-                InsufficientFundsException.class,
+                MinimumBalanceException.class,
                 () -> account.withdraw(
                         new BigDecimal("0.01")
                 )

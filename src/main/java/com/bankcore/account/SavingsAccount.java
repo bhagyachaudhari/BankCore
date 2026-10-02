@@ -1,6 +1,5 @@
 package com.bankcore.account;
 
-import com.bankcore.exception.InsufficientFundsException;
 import com.bankcore.exception.MinimumBalanceException;
 
 import java.math.BigDecimal;
@@ -32,7 +31,7 @@ public class SavingsAccount extends Account {
                 getBalance().subtract(amount);
 
         if (remainingBalance.compareTo(MINIMUM_BALANCE) < 0) {
-            throw new InsufficientFundsException(
+            throw new MinimumBalanceException(
                     "Insufficient balance. Savings account "
                             + "must maintain a minimum balance of ₹1,000.");
         }
