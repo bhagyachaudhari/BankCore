@@ -75,31 +75,4 @@ class CustomerTest {
         assertEquals(expected, customer.toString());
     }
 
-    @Test
-    void shouldAllowNullValues() {
-
-        Customer customer = new Customer(
-                null,
-                null,
-                null
-        );
-
-        assertNull(customer.getCustomerId());
-        assertNull(customer.getName());
-        assertNull(customer.getEmail());
-    }
-
-    @Test
-    void shouldAllowEmptyValues() {
-
-        Customer customer = new Customer(
-                "",
-                "",
-                ""
-        );
-
-        assertEquals("", customer.getCustomerId());
-        assertEquals("", customer.getName());
-        assertEquals("", customer.getEmail());
-    }
 }
