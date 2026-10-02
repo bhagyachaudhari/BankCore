@@ -1,8 +1,10 @@
 package com.bankcore.service;
 
 import com.bankcore.account.Account;
+import com.bankcore.transaction.Transaction;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public interface AccountService {
 
@@ -26,5 +28,7 @@ public interface AccountService {
             String fromAccountNumber,
             String toAccountNumber,
             BigDecimal amount);
+
+    List<Transaction> getTransactions(String accountNumber);
 
 }

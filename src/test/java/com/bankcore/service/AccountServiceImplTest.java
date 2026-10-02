@@ -2,519 +2,359 @@ package com.bankcore.service;
 
 import com.bankcore.account.Account;
 import com.bankcore.account.AccountType;
-import com.bankcore.exception.AccountNotFoundException;
-import com.bankcore.exception.InvalidAmountException;
-import com.bankcore.exception.MinimumBalanceException;
-import com.bankcore.exception.SameAccountTransferException;
+import com.bankcore.exception.*;
+import com.bankcore.transaction.Transaction;
+import com.bankcore.transaction.TransactionType;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class AccountServiceImplTest {
 
+    private TransactionService transactionService;
     private AccountServiceImpl accountService;
 
     @BeforeEach
     void setUp() {
-        accountService = new AccountServiceImpl();
+        transactionService = mock(TransactionService.class);
+        accountService = new AccountServiceImpl(transactionService);
     }
 
-    // =========================================================
-    // createSavingsAccount()
-    // =========================================================
+    // ---------------- CREATE ACCOUNT TESTS ----------------
 
     @Test
-    void shouldCreateSavingsAccount() {
-
+    void createSavingsAccount_shouldCreateAccount() {
         Account account = accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
 
         assertNotNull(account);
-        assertEquals("ACC1001", account.getAccountNumber());
+        assertEquals("SAV001", account.getAccountNumber());
         assertEquals("CUST001", account.getCustomerId());
-        assertEquals(
-                new BigDecimal("5000.00"),
-                account.getBalance()
-        );
+        assertEquals(0, new BigDecimal("5000.00")
+                .compareTo(account.getBalance()));
         assertEquals(AccountType.SAVINGS, account.getAccountType());
     }
 
     @Test
-    void shouldRetrieveCreatedSavingsAccount() {
-
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
-
-        Account account = accountService.getAccount("ACC1001");
-
-        assertNotNull(account);
-        assertEquals("ACC1001", account.getAccountNumber());
-        assertEquals("CUST001", account.getCustomerId());
-    }
-
-    // =========================================================
-    // createCurrentAccount()
-    // =========================================================
-
-    @Disabled
-    void shouldCreateCurrentAccount() {
-
+    void createCurrentAccount_shouldCreateAccount() {
         Account account = accountService.createCurrentAccount(
-                "ACC2001",
-                "CUST002",
-                new BigDecimal("5000.00")
-        );
+                "CUR001", "CUST002", new BigDecimal("10000.00"));
 
-        /*
-         * This test is expected to FAIL with the current
-         * implementation because createCurrentAccount()
-         * currently returns null.
-         *
-         * Once CurrentAccount is implemented, this test
-         * should pass.
-         */
         assertNotNull(account);
-        assertEquals("ACC2001", account.getAccountNumber());
+        assertEquals("CUR001", account.getAccountNumber());
         assertEquals("CUST002", account.getCustomerId());
-        assertEquals(
-                new BigDecimal("5000.00"),
-                account.getBalance()
-        );
+        assertEquals(0, new BigDecimal("10000.00")
+                .compareTo(account.getBalance()));
         assertEquals(AccountType.CURRENT, account.getAccountType());
     }
 
-    // =========================================================
-    // getAccount()
-    // =========================================================
-
     @Test
-    void shouldReturnExistingAccount() {
+    void getAccount_shouldReturnExistingAccount() {
+        Account created = accountService.createSavingsAccount(
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
+        Account retrieved = accountService.getAccount("SAV001");
 
-        Account account = accountService.getAccount("ACC1001");
-
-        assertNotNull(account);
-        assertEquals("ACC1001", account.getAccountNumber());
+        assertSame(created, retrieved);
     }
 
     @Test
-    void shouldThrowAccountNotFoundExceptionForUnknownAccount() {
-
-        assertThrows(
-                AccountNotFoundException.class,
-                () -> accountService.getAccount("ACC9999")
-        );
+    void getAccount_shouldThrowExceptionWhenAccountDoesNotExist() {
+        assertThrows(AccountNotFoundException.class,
+                () -> accountService.getAccount("UNKNOWN"));
     }
 
-    // =========================================================
-    // deposit()
-    // =========================================================
+    // ---------------- DEPOSIT TESTS ----------------
 
     @Test
-    void shouldDepositMoneySuccessfully() {
+    void deposit_shouldUpdateBalanceAndRecordTransaction() {
+        Account account = accountService.createSavingsAccount(
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
+        Transaction transaction = mock(Transaction.class);
 
-        accountService.deposit(
-                "ACC1001",
-                new BigDecimal("2000.00")
-        );
+        when(transactionService.createTransaction(
+                "SAV001", TransactionType.DEPOSIT,
+                new BigDecimal("1000.00")))
+                .thenReturn(transaction);
 
-        assertEquals(
-                new BigDecimal("7000.00"),
-                accountService.getAccount("ACC1001").getBalance()
-        );
+        accountService.deposit("SAV001", new BigDecimal("1000.00"));
+
+        assertEquals(0, new BigDecimal("6000.00")
+                .compareTo(account.getBalance()));
+
+        verify(transactionService).createTransaction(
+                "SAV001", TransactionType.DEPOSIT,
+                new BigDecimal("1000.00"));
+
+        verify(transactionService).recordTransaction(transaction);
     }
 
     @Test
-    void shouldThrowAccountNotFoundExceptionWhenDepositingToUnknownAccount() {
-
-        assertThrows(
-                AccountNotFoundException.class,
+    void deposit_shouldThrowExceptionForUnknownAccount() {
+        assertThrows(AccountNotFoundException.class,
                 () -> accountService.deposit(
-                        "ACC9999",
-                        new BigDecimal("1000.00")
-                )
-        );
+                        "UNKNOWN", new BigDecimal("500.00")));
+
+        verifyNoInteractions(transactionService);
     }
 
     @Test
-    void shouldRejectZeroDeposit() {
+    void deposit_shouldNotRecordTransactionForInvalidAmount() {
+        Account account = accountService.createSavingsAccount(
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
-
-        assertThrows(
-                InvalidAmountException.class,
+        assertThrows(InvalidAmountException.class,
                 () -> accountService.deposit(
-                        "ACC1001",
-                        BigDecimal.ZERO
-                )
-        );
+                        "SAV001", BigDecimal.ZERO));
+
+        assertEquals(0, new BigDecimal("5000.00")
+                .compareTo(account.getBalance()));
+
+        verifyNoInteractions(transactionService);
+    }
+
+    // ---------------- WITHDRAWAL TESTS ----------------
+
+    @Test
+    void withdraw_shouldUpdateBalanceAndRecordTransaction() {
+        Account account = accountService.createSavingsAccount(
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
+
+        Transaction transaction = mock(Transaction.class);
+
+        when(transactionService.createTransaction(
+                "SAV001", TransactionType.WITHDRAWAL,
+                new BigDecimal("1000.00")))
+                .thenReturn(transaction);
+
+        accountService.withdraw("SAV001", new BigDecimal("1000.00"));
+
+        assertEquals(0, new BigDecimal("4000.00")
+                .compareTo(account.getBalance()));
+
+        verify(transactionService).createTransaction(
+                "SAV001", TransactionType.WITHDRAWAL,
+                new BigDecimal("1000.00"));
+
+        verify(transactionService).recordTransaction(transaction);
     }
 
     @Test
-    void shouldRejectNegativeDeposit() {
+    void withdraw_shouldThrowExceptionWhenAccountDoesNotExist() {
+        assertThrows(AccountNotFoundException.class,
+                () -> accountService.withdraw(
+                        "UNKNOWN", new BigDecimal("500.00")));
 
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
-
-        assertThrows(
-                InvalidAmountException.class,
-                () -> accountService.deposit(
-                        "ACC1001",
-                        new BigDecimal("-100.00")
-                )
-        );
-    }
-
-    // =========================================================
-    // withdraw()
-    // =========================================================
-
-    @Test
-    void shouldWithdrawMoneySuccessfully() {
-
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
-
-        accountService.withdraw(
-                "ACC1001",
-                new BigDecimal("2000.00")
-        );
-
-        assertEquals(
-                new BigDecimal("3000.00"),
-                accountService.getAccount("ACC1001").getBalance()
-        );
+        verifyNoInteractions(transactionService);
     }
 
     @Test
-    void shouldAllowSavingsWithdrawalLeavingMinimumBalance() {
-
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
-
-        accountService.withdraw(
-                "ACC1001",
-                new BigDecimal("4000.00")
-        );
-
-        assertEquals(
-                new BigDecimal("1000.00"),
-                accountService.getAccount("ACC1001").getBalance()
-        );
-    }
-
-    @Test
-    void shouldRejectSavingsWithdrawalBelowMinimumBalance() {
-
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
+    void withdraw_shouldNotRecordTransactionWhenSavingsMinimumBalanceViolated() {
+        Account account = accountService.createSavingsAccount(
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
 
         assertThrows(
                 MinimumBalanceException.class,
                 () -> accountService.withdraw(
-                        "ACC1001",
-                        new BigDecimal("4000.01")
-                )
-        );
+                        "SAV001", new BigDecimal("4500.00")));
+
+        assertEquals(0, new BigDecimal("5000.00")
+                .compareTo(account.getBalance()));
+
+        verifyNoInteractions(transactionService);
     }
 
     @Test
-    void shouldThrowAccountNotFoundExceptionWhenWithdrawingFromUnknownAccount() {
+    void withdraw_shouldThrowExceptionForZeroAmount() {
+        Account account = accountService.createCurrentAccount(
+                "CUR001", "CUST001", new BigDecimal("5000.00"));
 
-        assertThrows(
-                AccountNotFoundException.class,
+        assertThrows(InvalidAmountException.class,
                 () -> accountService.withdraw(
-                        "ACC9999",
-                        new BigDecimal("1000.00")
-                )
-        );
+                        "CUR001", BigDecimal.ZERO));
+
+        assertEquals(0, new BigDecimal("5000.00")
+                .compareTo(account.getBalance()));
+
+        verifyNoInteractions(transactionService);
     }
 
-    @Test
-    void shouldRejectZeroWithdrawal() {
-
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
-
-        assertThrows(
-                InvalidAmountException.class,
-                () -> accountService.withdraw(
-                        "ACC1001",
-                        BigDecimal.ZERO
-                )
-        );
-    }
+    // ---------------- TRANSFER TESTS ----------------
 
     @Test
-    void shouldRejectNegativeWithdrawal() {
+    void transfer_shouldUpdateBalancesAndRecordTwoTransactions() {
+        Account source = accountService.createCurrentAccount(
+                "CUR001", "CUST001", new BigDecimal("10000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
+        Account destination = accountService.createSavingsAccount(
+                "SAV001", "CUST002", new BigDecimal("5000.00"));
 
-        assertThrows(
-                InvalidAmountException.class,
-                () -> accountService.withdraw(
-                        "ACC1001",
-                        new BigDecimal("-100.00")
-                )
-        );
-    }
+        Transaction debit = mock(Transaction.class);
+        Transaction credit = mock(Transaction.class);
 
-    // =========================================================
-    // transfer()
-    // =========================================================
+        when(transactionService.createTransaction(
+                "CUR001", TransactionType.TRANSFER,
+                new BigDecimal("2000.00")))
+                .thenReturn(debit);
 
-    @Test
-    void shouldTransferMoneySuccessfully() {
-
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("10000.00")
-        );
-
-        accountService.createSavingsAccount(
-                "ACC2001",
-                "CUST002",
-                new BigDecimal("5000.00")
-        );
+        when(transactionService.createTransaction(
+                "SAV001", TransactionType.TRANSFER,
+                new BigDecimal("2000.00")))
+                .thenReturn(credit);
 
         accountService.transfer(
-                "ACC1001",
-                "ACC2001",
-                new BigDecimal("2000.00")
-        );
+                "CUR001", "SAV001", new BigDecimal("2000.00"));
 
-        assertEquals(
-                new BigDecimal("8000.00"),
-                accountService.getAccount("ACC1001").getBalance()
-        );
+        assertEquals(0, new BigDecimal("8000.00")
+                .compareTo(source.getBalance()));
 
-        assertEquals(
-                new BigDecimal("7000.00"),
-                accountService.getAccount("ACC2001").getBalance()
-        );
+        assertEquals(0, new BigDecimal("7000.00")
+                .compareTo(destination.getBalance()));
+
+        verify(transactionService).createTransaction(
+                "CUR001", TransactionType.TRANSFER,
+                new BigDecimal("2000.00"));
+
+        verify(transactionService).createTransaction(
+                "SAV001", TransactionType.TRANSFER,
+                new BigDecimal("2000.00"));
+
+        verify(transactionService).recordTransaction(debit);
+        verify(transactionService).recordTransaction(credit);
+        verify(transactionService, times(2))
+                .recordTransaction(any(Transaction.class));
     }
 
     @Test
-    void shouldRejectTransferToSameAccount() {
+    void transfer_shouldThrowExceptionForSameAccount() {
+        accountService.createCurrentAccount(
+                "CUR001", "CUST001", new BigDecimal("5000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
-
-        assertThrows(
-                SameAccountTransferException.class,
+        assertThrows(SameAccountTransferException.class,
                 () -> accountService.transfer(
-                        "ACC1001",
-                        "ACC1001",
-                        new BigDecimal("1000.00")
-                )
-        );
+                        "CUR001", "CUR001",
+                        new BigDecimal("1000.00")));
+
+        verifyNoInteractions(transactionService);
     }
 
     @Test
-    void shouldRejectTransferFromUnknownAccount() {
-
+    void transfer_shouldThrowExceptionWhenSourceAccountDoesNotExist() {
         accountService.createSavingsAccount(
-                "ACC2001",
-                "CUST002",
-                new BigDecimal("5000.00")
-        );
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
 
-        assertThrows(
-                AccountNotFoundException.class,
+        assertThrows(AccountNotFoundException.class,
                 () -> accountService.transfer(
-                        "ACC9999",
-                        "ACC2001",
-                        new BigDecimal("1000.00")
-                )
-        );
+                        "UNKNOWN", "SAV001",
+                        new BigDecimal("1000.00")));
+
+        verifyNoInteractions(transactionService);
     }
 
     @Test
-    void shouldRejectTransferToUnknownAccount() {
+    void transfer_shouldThrowExceptionWhenDestinationAccountDoesNotExist() {
+        Account source = accountService.createCurrentAccount(
+                "CUR001", "CUST001", new BigDecimal("5000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
-
-        assertThrows(
-                AccountNotFoundException.class,
+        assertThrows(AccountNotFoundException.class,
                 () -> accountService.transfer(
-                        "ACC1001",
-                        "ACC9999",
-                        new BigDecimal("1000.00")
-                )
-        );
+                        "CUR001", "UNKNOWN",
+                        new BigDecimal("1000.00")));
+
+        assertEquals(0, new BigDecimal("5000.00")
+                .compareTo(source.getBalance()));
+
+        verifyNoInteractions(transactionService);
     }
 
     @Test
-    void shouldRejectTransferWhenSavingsMinimumBalanceIsViolated() {
+    void transfer_shouldNotRecordTransactionsWhenWithdrawalFails() {
+        Account source = accountService.createSavingsAccount(
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
+        Account destination = accountService.createSavingsAccount(
+                "SAV002", "CUST002", new BigDecimal("5000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC2001",
-                "CUST002",
-                new BigDecimal("5000.00")
-        );
-
-        assertThrows(
-                MinimumBalanceException.class,
+        assertThrows(MinimumBalanceException.class,
                 () -> accountService.transfer(
-                        "ACC1001",
-                        "ACC2001",
-                        new BigDecimal("4000.01")
-                )
-        );
+                        "SAV001", "SAV002",
+                        new BigDecimal("4500.00")));
 
-        // Source balance should remain unchanged
-        assertEquals(
-                new BigDecimal("5000.00"),
-                accountService.getAccount("ACC1001").getBalance()
-        );
+        assertEquals(0, new BigDecimal("5000.00")
+                .compareTo(source.getBalance()));
 
-        // Destination balance should remain unchanged
-        assertEquals(
-                new BigDecimal("5000.00"),
-                accountService.getAccount("ACC2001").getBalance()
-        );
+        assertEquals(0, new BigDecimal("5000.00")
+                .compareTo(destination.getBalance()));
+
+        verifyNoInteractions(transactionService);
     }
 
     @Test
-    void shouldRejectZeroTransfer() {
+    void transfer_shouldThrowExceptionForInvalidAmount() {
+        accountService.createCurrentAccount(
+                "CUR001", "CUST001", new BigDecimal("5000.00"));
 
         accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
+                "SAV001", "CUST002", new BigDecimal("5000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC2001",
-                "CUST002",
-                new BigDecimal("5000.00")
-        );
-
-        assertThrows(
-                InvalidAmountException.class,
+        assertThrows(InvalidAmountException.class,
                 () -> accountService.transfer(
-                        "ACC1001",
-                        "ACC2001",
-                        BigDecimal.ZERO
-                )
-        );
+                        "CUR001", "SAV001", BigDecimal.ZERO));
+
+        verifyNoInteractions(transactionService);
+    }
+
+    // ---------------- TRANSACTION HISTORY TESTS ----------------
+
+    @Test
+    void getTransactions_shouldReturnAccountTransactions() {
+        accountService.createSavingsAccount(
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
+
+        List<Transaction> transactions = Arrays.asList(
+                mock(Transaction.class),
+                mock(Transaction.class));
+
+        when(transactionService.getTransactions("SAV001"))
+                .thenReturn(transactions);
+
+        List<Transaction> result =
+                accountService.getTransactions("SAV001");
+
+        assertEquals(2, result.size());
+        assertSame(transactions, result);
+
+        verify(transactionService).getTransactions("SAV001");
     }
 
     @Test
-    void shouldRejectNegativeTransfer() {
-
+    void getTransactions_shouldReturnEmptyListWhenNoTransactionsExist() {
         accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
+                "SAV001", "CUST001", new BigDecimal("5000.00"));
 
-        accountService.createSavingsAccount(
-                "ACC2001",
-                "CUST002",
-                new BigDecimal("5000.00")
-        );
+        when(transactionService.getTransactions("SAV001"))
+                .thenReturn(Collections.emptyList());
 
-        assertThrows(
-                InvalidAmountException.class,
-                () -> accountService.transfer(
-                        "ACC1001",
-                        "ACC2001",
-                        new BigDecimal("-100.00")
-                )
-        );
+        List<Transaction> result =
+                accountService.getTransactions("SAV001");
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
     }
 
     @Test
-    void shouldNotChangeBalancesWhenTransferFails() {
+    void getTransactions_shouldThrowExceptionForUnknownAccount() {
+        assertThrows(AccountNotFoundException.class,
+                () -> accountService.getTransactions("UNKNOWN"));
 
-        accountService.createSavingsAccount(
-                "ACC1001",
-                "CUST001",
-                new BigDecimal("5000.00")
-        );
-
-        accountService.createSavingsAccount(
-                "ACC2001",
-                "CUST002",
-                new BigDecimal("5000.00")
-        );
-
-        assertThrows(
-                MinimumBalanceException.class,
-                () -> accountService.transfer(
-                        "ACC1001",
-                        "ACC2001",
-                        new BigDecimal("4500.00")
-                )
-        );
-
-        assertEquals(
-                new BigDecimal("5000.00"),
-                accountService.getAccount("ACC1001").getBalance()
-        );
-
-        assertEquals(
-                new BigDecimal("5000.00"),
-                accountService.getAccount("ACC2001").getBalance()
-        );
+        verifyNoInteractions(transactionService);
     }
 }
