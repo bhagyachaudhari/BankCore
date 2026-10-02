@@ -2,6 +2,7 @@ package com.bankcore;
 
 import com.bankcore.account.*;
 import com.bankcore.customer.Customer;
+import com.bankcore.service.AccountService;
 
 import java.math.BigDecimal;
 
@@ -18,11 +19,11 @@ public class BankCoreApplication {
         Account current = new CurrentAccount(
                 "CUR001", "C002", new BigDecimal("10000.00"));
 
-        AccountService savingsService = new AccountService(savings);
-        AccountService currentService = new AccountService(current);
+        //AccountService savingsService = new AccountService(savings);
+        //AccountService currentService = new AccountService(current);
 
-        savingsService.withdraw(null);
-        currentService.withdraw(null);
+        //savingsService.withdraw(null);
+        //currentService.withdraw(null);
 
         System.out.println(savings.getAccountType()
                 + " Balance: " + savings.getBalance());
