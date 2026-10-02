@@ -1,40 +1,46 @@
 package com.bankcore.account;
 
-import java.math.BigDecimal;
+import com.bankcore.exception.InvalidAmountException;
 
-public class Account {
+import java.math.BigDecimal;
+import java.util.Objects;
+
+public abstract class Account {
 
     private final String accountNumber;
     private final String customerId;
-    private final AccountType accountType;
     private BigDecimal balance;
 
-    public Account(String accountNumber, String customerId, AccountType accountType, BigDecimal balance) {
+    public Account(String accountNumber,
+                   String customerId,
+                   BigDecimal initialBalance) {
 
-        if(balance == null || balance.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("balance should not be null or negative");
+        Objects.requireNonNull(accountNumber, "accountNumber cannot be null");
+        Objects.requireNonNull(customerId, "customerId cannot be null");
+        Objects.requireNonNull(initialBalance, "initialBalance cannot be null");
+
+        if (accountNumber.isBlank()) {
+            throw new IllegalArgumentException(
+                    "accountNumber cannot be empty");
         }
 
-        if(accountNumber == null || accountNumber.equals("")) {
-            throw new IllegalArgumentException("accountNumber should not be null or empty");
+        if (customerId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "customerId cannot be empty");
         }
 
-        if(accountType == null || accountType.equals("")) {
-            throw new IllegalArgumentException("accountType should not be null or empty");
+        if (initialBalance.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidAmountException(
+                    "initialBalance must be greater than zero");
         }
 
         this.accountNumber = accountNumber;
         this.customerId = customerId;
-        this.accountType = accountType;
-        this.balance = balance;
+        this.balance = initialBalance;
     }
 
     public String getCustomerId() {
         return customerId;
-    }
-
-    public AccountType getAccountType() {
-        return accountType;
     }
 
     public String getAccountNumber() {
@@ -46,24 +52,28 @@ public class Account {
     }
 
     public void deposit(BigDecimal amount) {
-        validateAmount(amount);
+        validatePositiveAmount(amount, "Deposit");
+
         balance = balance.add(amount);
     }
 
-    public void withdraw(BigDecimal amount) {
-        validateAmount(amount);
+    protected void validatePositiveAmount(BigDecimal amount,
+                                          String operation) {
+        Objects.requireNonNull(amount, operation + " amount cannot be null");
 
-        if (amount.compareTo(this.balance) > 0) {
-            throw new IllegalArgumentException("Insufficient balance.");
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidAmountException(
+                    operation + " amount must be greater than zero");
         }
+    }
+
+    protected void subtractFromBalance(BigDecimal amount) {
 
         balance = balance.subtract(amount);
     }
 
-    private void validateAmount(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be positive.");
-        }
-    }
+    public abstract void withdraw(BigDecimal amount);
+
+    public abstract AccountType getAccountType();
 
 }

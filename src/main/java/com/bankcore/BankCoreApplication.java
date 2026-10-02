@@ -1,8 +1,6 @@
 package com.bankcore;
 
-import com.bankcore.account.Account;
-import com.bankcore.account.AccountService;
-import com.bankcore.account.AccountType;
+import com.bankcore.account.*;
 import com.bankcore.customer.Customer;
 
 import java.math.BigDecimal;
@@ -11,31 +9,25 @@ public class BankCoreApplication {
 
     public static void main(String[] args) {
 
-        Customer customer = new Customer("C001", "Rahul", "rahul@example.com");
+        Customer customer1 = new Customer("C001", "Bhagyashri", "bhagya@example.com");
+        Customer customer2 = new Customer("C002", "Sonali", "sona@example.com");
 
-        Account account = new Account("ACC10001", "C001", AccountType.SAVINGS,
-                new BigDecimal("10000.00"));
+        Account savings = new SavingsAccount(
+                "SAV001", "C001", new BigDecimal("10000.00"));
 
-        System.out.println("Customer: " + customer.getName());
-        System.out.println("Account: " + account.getAccountNumber());
-        System.out.println("Account Type: " + account.getAccountType());
-        System.out.println("Initial Balance: " + account.getBalance());
+        Account current = new CurrentAccount(
+                "CUR001", "C002", new BigDecimal("10000.00"));
 
-        AccountService accountService = new AccountService(account);
+        AccountService savingsService = new AccountService(savings);
+        AccountService currentService = new AccountService(current);
 
-        accountService.deposit(new BigDecimal("5000.00"));
-        System.out.println("After Deposit: " + account.getBalance());
+        savingsService.withdraw(null);
+        currentService.withdraw(null);
 
-        accountService.withdraw(new BigDecimal("2000.00"));
-        System.out.println("After Withdrawal: " + account.getBalance());
+        System.out.println(savings.getAccountType()
+                + " Balance: " + savings.getBalance());
 
-        try {
-            accountService.withdraw(new BigDecimal("20000.00"));
-        } catch (IllegalArgumentException e) {
-            System.out.println("Withdrawal rejected: " + e.getMessage());
-        }
-
-        System.out.println("Final Balance: " + account.getBalance());
-
+        System.out.println(current.getAccountType()
+                + " Balance: " + current.getBalance());
     }
 }

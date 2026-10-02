@@ -20,4 +20,8 @@ public class AccountService {
     public void withdraw(BigDecimal amount) {
         account.withdraw(amount);
     }
+
+    public Account getAccount() {
+        return account;
+    }
 }
