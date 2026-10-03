@@ -1,5 +1,6 @@
 package com.bankcore.account;
 
+import com.bankcore.exception.InsufficientFundsException;
 import com.bankcore.exception.MinimumBalanceException;
 
 import java.math.BigDecimal;
@@ -24,14 +25,13 @@ public class SavingsAccount extends Account {
 
     @Override
     public void withdraw(BigDecimal amount) {
-
+        validateActive();
         validatePositiveAmount(amount, "Withdrawal");
 
-        BigDecimal remainingBalance =
-                getBalance().subtract(amount);
+        BigDecimal remainingBalance = getBalance().subtract(amount);
 
         if (remainingBalance.compareTo(MINIMUM_BALANCE) < 0) {
-            throw new MinimumBalanceException(
+            throw new InsufficientFundsException(
                     "Insufficient balance. Savings account "
                             + "must maintain a minimum balance of ₹1,000.");
         }

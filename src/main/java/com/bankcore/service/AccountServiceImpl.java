@@ -4,6 +4,7 @@ import com.bankcore.account.Account;
 import com.bankcore.account.CurrentAccount;
 import com.bankcore.account.SavingsAccount;
 import com.bankcore.exception.AccountAlreadyExistsException;
+import com.bankcore.exception.AccountFrozenException;
 import com.bankcore.exception.AccountNotFoundException;
 import com.bankcore.exception.SameAccountTransferException;
 import com.bankcore.transaction.Transaction;
@@ -122,6 +123,17 @@ public class AccountServiceImpl implements AccountService {
         Account fromAccount = getAccount(fromAccountNumber);
         Account toAccount = getAccount(toAccountNumber);
 
+        // Validate both accounts before changing either balance.
+        if (!fromAccount.isActive()) {
+            throw new AccountFrozenException(
+                    "Source account is frozen: " + fromAccountNumber);
+        }
+
+        if (!toAccount.isActive()) {
+            throw new AccountFrozenException(
+                    "Destination account is frozen: " + toAccountNumber);
+        }
+
         fromAccount.withdraw(amount);
         toAccount.deposit(amount);
 
@@ -140,4 +152,15 @@ public class AccountServiceImpl implements AccountService {
         getAccount(accountNumber);
         return transactionService.getTransactions(accountNumber);
     }
+
+    @Override
+    public void freezeAccount(String accountNumber) {
+        getAccount(accountNumber).freeze();
+    }
+
+    @Override
+    public void reactivateAccount(String accountNumber) {
+        getAccount(accountNumber).reactivate();
+    }
+
 }

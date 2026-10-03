@@ -31,4 +31,9 @@ public interface AccountService {
 
     List<Transaction> getTransactions(String accountNumber);
 
+    void freezeAccount(String accountNumber);
+
+    void reactivateAccount(String accountNumber);
+
+
 }

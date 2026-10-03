@@ -17,14 +17,11 @@ public class CurrentAccount extends Account {
 
     @Override
     public void withdraw(BigDecimal amount) {
-
+        validateActive();
         validatePositiveAmount(amount, "Withdrawal");
 
-        BigDecimal remainingBalance =
-                getBalance().subtract(amount);
-
-        BigDecimal minimumAllowedBalance =
-                OVERDRAFT_LIMIT.negate();
+        BigDecimal remainingBalance = getBalance().subtract(amount);
+        BigDecimal minimumAllowedBalance = OVERDRAFT_LIMIT.negate();
 
         if (remainingBalance.compareTo(minimumAllowedBalance) < 0) {
             throw new InsufficientFundsException(
